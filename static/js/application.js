@@ -57,7 +57,7 @@ function stop_capture(){
 //Do pre data capture setup and initialise application logging
 function setup_logging(){
     socket.emit('do setup');
-    $('#setupbutton').html('Setup');
+    $('#setupbutton').html('Setup Logger');
     $('#aplog').html('');
     msgs_received = [];
 }
@@ -66,6 +66,8 @@ function setup_logging(){
 function shutdown(){
     socket.emit('shutdown app');
     $('#startstopbutton').html('Start');
+    msgs_received = [];
+    numbers_received = [];
 }
 
 //Shutdown whole Pi gracefully

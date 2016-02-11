@@ -15,7 +15,7 @@
   </div>
 </div>
 <div class="container" style="width:80%;">
-    <div id="left" style="float:left; width:50%;" class="row">
+    <div id="left" style="float:left; width:70%;" class="row">
         <div class="row">
             <button id="startbutton" type="button" class="btn btn-primary" onclick="start_capture();">Start Data Capture</button>
             <button id="stopbutton" type="button" class="btn btn-primary" onclick="stop_capture();">Stop Data Capture</button>
@@ -26,15 +26,20 @@
         </div>
     </div>
 
-    <div id="right" style="float:right; width:50%;" class="row">
+    <div id="right" style="float:right; width:30%;" class="row">
         <div class="row">
             <a id="downloadbutton" class="btn btn-primary" href="{{ url_for('autoindex') }}" target="_blank">Download Files</a>
+        </div>
+        <p>
+        </p>        
+        
+        <div class="row">
             <button id="shutdownPibutton" type="button" class="btn btn-primary" onclick="Shutdown_Pi();">Shutdown Pi3</button>
         </div>
         <div class="row">
             <h3>Application log:</h3>
             <button id="setupbutton" type="button" class="btn btn-primary" onclick="setup_logging();">Setup Logger</button>
-            <button id="shutdownbutton" type="button" class="btn btn-primary" onclick="shutdown();">Shutdown App</button>
+            <button id="shutdownbutton" type="button" class="btn btn-primary" onclick="shutdown();">Shutdown Logger</button>
             <div id="applog"></div>
         </div>
     </div>
