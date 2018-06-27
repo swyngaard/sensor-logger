@@ -57,6 +57,7 @@ def test_connect():
 
 @socketio.on('disconnect', namespace='/test')
 def test_disconnect():
+    thread_stop_event.set()
     print('Client disconnected')
 
 
