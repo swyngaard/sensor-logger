@@ -26,6 +26,7 @@ class RandomThread(Thread):
         """
         # infinite loop of magical random numbers
         print("Making random numbers")
+        thread_stop_event.clear()
         while not thread_stop_event.isSet():
             number = round(random()*10, 3)
             print(number)
@@ -44,10 +45,17 @@ def index():
 
 @socketio.on('connect', namespace='/test')
 def test_connect():
-    # need visibility of the global thread object
-    global thread
     print('Client connected')
 
+
+@socketio.on('disconnect', namespace='/test')
+def test_disconnect():
+    print('Client disconnected')
+
+
+@socketio.on('my start', namespace='/test')
+def start_running():
+    global thread
     # Start the random number generator thread only if the thread has not been started before.
     if not thread.isAlive():
         print("Starting Thread")
@@ -55,10 +63,9 @@ def test_connect():
         thread.start()
 
 
-@socketio.on('disconnect', namespace='/test')
-def test_disconnect():
+@socketio.on('my stop', namespace='/test')
+def stop_running():
     thread_stop_event.set()
-    print('Client disconnected')
 
 
 if __name__ == "__main__":
