@@ -37,10 +37,10 @@ function stop_logging(){
     $('#startstopbutton').html('Start');
 }dd
 
-function toggle_logging(){
-    if($('#startstopbutton').text() === 'Start') {
-        start_logging();
-    } else {
-        stop_logging();
-    }
-}
+#function toggle_logging(){
+#    if($('#startstopbutton').text() === 'Start') {
+#        start_logging();
+#    } else {
+#        stop_logging();
+#    }
+#}

@@ -58,8 +58,8 @@ def start_running():
     # Start the random number generator thread only if the thread has not been started before.
     if not thread.isAlive():
         print("Starting Thread")
-        # thread = RandomThread()
-        thread = ShongololosThread()
+        thread = RandomThread()
+        #thread = ShongololosThread()
         thread.start()
 
 
