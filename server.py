@@ -36,7 +36,6 @@ class RandomThread(Thread):
     def run(self):
         self.random_number_generator()
 
-
 @app.route('/')
 def index():
     # only by sending this page first will the client be connected to the socketio instance
@@ -59,7 +58,8 @@ def start_running():
     # Start the random number generator thread only if the thread has not been started before.
     if not thread.isAlive():
         print("Starting Thread")
-        thread = RandomThread()
+        # thread = RandomThread()
+        thread = ShongololosThread()
         thread.start()
 
 
@@ -67,6 +67,9 @@ def start_running():
 def stop_running():
     thread_stop_event.set()
 
+@socketio.on('download', namespace='/test')
+def download_data():
+    pass
 
 if __name__ == "__main__":
     socketio.run(app, host='0.0.0.0')

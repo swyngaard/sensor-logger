@@ -18,6 +18,13 @@ $(document).ready(function(){
     });
 });
 
+function download_data(){
+    socket.emit('download');
+    $('#downloadbutton').html('Download');
+    $('#log').html('');
+    numbers_received = [];
+}
+
 function start_logging(){
     socket.emit('my start');
     $('#startstopbutton').html('Stop');
@@ -28,7 +35,7 @@ function start_logging(){
 function stop_logging(){
     socket.emit('my stop');
     $('#startstopbutton').html('Start');
-}
+}dd
 
 function toggle_logging(){
     if($('#startstopbutton').text() === 'Start') {
