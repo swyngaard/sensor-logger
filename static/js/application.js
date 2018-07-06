@@ -35,7 +35,7 @@ function start_logging(){
 function stop_logging(){
     socket.emit('my stop');
     $('#startstopbutton').html('Start');
-}dd
+}
 
 #function toggle_logging(){
 #    if($('#startstopbutton').text() === 'Start') {
