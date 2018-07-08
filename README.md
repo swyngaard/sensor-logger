@@ -8,6 +8,7 @@ Flask application that visualises sensor log data in real time.
 	$ git clone https://github.com/swyngaard/sensor-logger.git
 	$ cd sensor-logger
 	$ virtualenv --python=python3 .venv
+    $ source .venv/bin/activate
 	$ pip install -r requirements.txt
 	$ python server.py
 ```

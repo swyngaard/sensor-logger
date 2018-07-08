@@ -1,6 +1,7 @@
 
 let socket = null;
 let numbers_received = [];
+let msgs_received = [];
 
 $(document).ready(function(){
     //connect to the socket server.
@@ -16,31 +17,54 @@ $(document).ready(function(){
         }
         $('#log').html(numbers_string);
     });
+    socket.on('newmsg', function(msg) {
+        console.log("Received log" + msg.lmsg);
+        msgs_received.push(msg.lmsg);
+        msg_string = '';
+        for (var i = 0; i < msgs_received.length; i++){
+            msg_string = msg_string + '<p>' + msgs_received[i].toString() + '</p>';
+        }
+        $('#applog').html(msg_string);
+    });
 });
 
+//Functions for controlling sensors and data capture
+
+//Download a data directory
 function download_data(){
     socket.emit('download');
-    $('#downloadbutton').html('Download');
+  //  $('#downloadbutton').html('Download');
+}
+
+//Start a data capture session
+function start_capture(){
+    socket.emit('start capture');
+    //TODO add a visible timer
+    //$('#startstopbutton').html('Stop');
     $('#log').html('');
     numbers_received = [];
 }
 
-function start_logging(){
-    socket.emit('my start');
-    $('#startstopbutton').html('Stop');
-    $('#log').html('');
-    numbers_received = [];
+//Stop a data capture session
+function stop_capture(){
+    socket.emit('stop capture');
+   // $('#startstopbutton').html('Start');
 }
 
-function stop_logging(){
-    socket.emit('my stop');
-    $('#startstopbutton').html('Start');
+
+// Functions controlling whole system
+
+//Do pre data capture setup and initialise application logging
+function setup_logging(){
+    socket.emit('do setup');
+//    $('#setupbutton').html('Setup');
+    $('#aplog').html('');
+    msgs_received = [];
 }
 
-#function toggle_logging(){
-#    if($('#startstopbutton').text() === 'Start') {
-#        start_logging();
-#    } else {
-#        stop_logging();
-#    }
-#}
+//Shutdown whole application gracefully
+function shutdown(){
+    socket.emit('shutdown app');
+   // $('#startstopbutton').html('Start');
+}
+

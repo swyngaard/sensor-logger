@@ -5,8 +5,7 @@
     <script src="//code.jquery.com/jquery-3.3.1.min.js"></script>
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
     <script src="static/js/application.js"></script>
-
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.css') }}">
 </head>
 <body>
 
@@ -15,20 +14,35 @@
     <h1>Sensor Logger</h1>
   </div>
 </div>
-<div class="container">
-    <div class="row">
-        <button id="startbutton" type="button" class="btn btn-primary" onclick="start_logging();">Start</button>
-        <button id="stopbutton" type="button" class="btn btn-primary" onclick="stop_logging();">Stop</button>
-        <button id="downloadbutton" type="button" class="btn btn-primary" onclick="download_data();">Download</button>
-        <!--TODO add app log window-->
+<div class="container", style="width:80%;">
+    <div id="left" style="float:left; width:50%;" class="row">
+        <button id="startbutton" type="button" class="btn btn-primary" onclick="start_capture();">Start Data Capture</button>
+        <button id="stopbutton" type="button" class="btn btn-primary" onclick="stop_capture();">Stop Data Capture</button>
+        <div class="row">
+            <h3>Data list:</h3>
+            <div id="log"></div>
+        </div>
     </div>
-</div>
-<div class="container" id="content">
-    <div class="row">
-        <h3>Data list:</h3>
-        <div id="log"></div>
+
+    <div id="right" style="float:right; width:50%;" class="row">
+        <h3>Download Select folder:</h3>
+        <button id="downloadbutton" type="button" class="btn btn-primary" onclick="download_data();">Download</button>
+        <select>
+            {% for each in option_list %}
+            <option value="{{each}}">{{each}}</option>
+            {% endfor %}
+        </select>
+
+        <div class="row">
+            <h3>Application log:</h3>
+            <button id="setupbutton" type="button" class="btn btn-primary" onclick="setup_logging();">Setup Logger</button>
+            <button id="shutdownbutton" type="button" class="btn btn-primary" onclick="shutdown();">Shutdown App</button>
+            <div id="applog"></div>
+        </div>
     </div>
 </div>
 
+
+<!--TODO add app log window-->
 </body>
 </html>
