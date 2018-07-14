@@ -5,21 +5,21 @@ from time import sleep
 from threading import Thread, Event
 import logging
 
-import sys
-sys.path.append('../code/shongololos/shongololos/')
-import shongololos
+#import sys
+#sys.path.append('../shongololo/shongololo/')
+from shongololo import start_up
+from shongololo import sys_admin
 
 app = Flask(__name__)
 
 # turn the flask app into a socketio app
 socketio = SocketIO(app)
 
-# random number Generator Thread
-thread = Thread()
-thread_stop_event = Event()
-lthread = Thread()
-lthread_stop_event = Event()
-
+sthread = Thread()
+sthread_stop_event = Event()
+mthread = Thread()
+mthread_stop_event = Event()
+sensors=[]
 
 class FlaskHandler(logging.Handler):
     def __init__(self, a_socket, level=logging.NOTSET):
@@ -30,10 +30,10 @@ class FlaskHandler(logging.Handler):
         socketio.emit('newmsg', {'lmsg': self.format(record)}, namespace='/test')
 
 
-class RandomThread(Thread):
+class shongololo_thread(Thread):
     def __init__(self):
         self.delay = 1
-        super(RandomThread, self).__init__()
+        super(shongololo_thread, self).__init__()
 
     def random_number_generator(self):
         """
@@ -52,28 +52,32 @@ class RandomThread(Thread):
     def run(self):
         self.random_number_generator()
 
-class LoggingThread(Thread):
+class monitoring_thread(Thread):
     """Prints application log to webpage and carries out initial setup work"""
     def __init__(self):
         self.delay = 1
-        super(LoggingThread, self).__init__()
+        self.imet_sockets = []
+        self.k30_sockets = []
+        self.datafile = ""
+        super(monitoring_thread, self).__init__()
 
-    def logging_stream(self):
+    def setup_shongololo(self):
         """
         Capture the apps log stream and output it to webpage along with performing initial setup work
         """
-        lthread_stop_event.clear()
+        mthread_stop_event.clear()
         flask_handler = FlaskHandler(socketio)
-        shongololos.start_up.start_up(flask_handler)
-        # TODO shutdown
+        self.imets_sockets, self.k30_sockets  = start_up.start_up_for_web(flask_handler)
+
+        start_up.test_sensors(self.imets_sockets,self.k30_sockets)
 
     def run(self):
-        self.logging_stream()
+        self.setup_shongololo()
 
 @app.route('/')
 def index():
     # only by sending this page first will the client be connected to the socketio instance
-    my_list = ['one','two','three']
+    my_list = ['./one.csv','./two.csv','./three.csv']
     return render_template('index.html', option_list=my_list)
 
 
@@ -90,18 +94,18 @@ def test_disconnect():
 @socketio.on('start capture', namespace='/test') #'my start' is referenced in java script
 def start_capture():
     """Start a data capture session"""
-    global thread
+    global sthread
     # Start the random number generator thread only if the thread has not been started before.
-    if not thread.isAlive():
+    if not sthread.isAlive():
         print("Starting Thread")
-        thread = RandomThread()
-        #thread = ShongololosThread()
-        thread.start()
+        sthread = shongololo_thread()
+        sthread.start()
 
 @socketio.on('stop capture', namespace='/test')
 def stop_capture():
     """Stop a data capture session"""
-    thread_stop_event.set()
+    #TODO close down files
+    sthread_stop_event.set()
 
 
 
@@ -109,21 +113,34 @@ def stop_capture():
 @socketio.on('do setup', namespace='/test')
 def do_setuplogging():
     """Do pre data capture setup and initialise application logging"""
-    # Start application logging and print to screen
-    print ("###### HERE ###########")
-    global lthread
-    if not lthread.isAlive():
-        lthread = LoggingThread()
-        lthread.start()
+    global mthread
+    if not mthread.isAlive():
+        mthread = monitoring_thread()
+        mthread.start()
 
 @socketio.on('shutdown app', namespace='/test')
 def shutdown_app():
     """Shutdown whole application gracefully"""
-    #TODO put app close down calls here
-    lthread_stop_event.set()
-    stop_capture()
 
+    #Close sensor sockets
+    for i in mthread.imet_sockets:
+        try:
+            i.close()
+        except:
+            pass
+    for k in mthread.k30_sockets:
+        try:
+            k.close()
+        except:
+            pass
 
+    #Stop data capture thread if running
+    if sthread.isAlive:
+        stop_capture()
+
+    #Close monitoring thread
+    sys_admin.shutdown_monitor()
+    mthread_stop_event.set()
 
 if __name__ == "__main__":
     socketio.run(app, host='0.0.0.0')
