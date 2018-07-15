@@ -1,9 +1,11 @@
 from flask_socketio import SocketIO
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 from random import random
 from time import sleep
 from threading import Thread, Event
+from flask_autoindex import AutoIndex
 import logging
+import os
 
 #import sys
 #sys.path.append('../shongololo/shongololo/')
@@ -14,6 +16,7 @@ app = Flask(__name__)
 
 # turn the flask app into a socketio app
 socketio = SocketIO(app)
+filesindex = AutoIndex(app, os.path.join(app.root_path, 'files'), add_url_rules=False)
 
 sthread = Thread()
 sthread_stop_event = Event()
@@ -79,6 +82,12 @@ def index():
     # only by sending this page first will the client be connected to the socketio instance
     my_list = ['./one.csv','./two.csv','./three.csv']
     return render_template('index.html', option_list=my_list)
+
+
+@app.route('/files')
+@app.route('/files/<path:path>')
+def autoindex(path='.'):
+    return filesindex.render_autoindex(path)
 
 
 @socketio.on('connect', namespace='/test')

@@ -9,15 +9,17 @@
 </head>
 <body>
 
-<div class="container">
+<div class="container-fluid">
   <div class="jumbotron">
-    <h1>Sensor Logger</h1>
+    <h2>Sensor Logger</h2>
   </div>
 </div>
-<div class="container", style="width:80%;">
+<div class="container" style="width:80%;">
     <div id="left" style="float:left; width:50%;" class="row">
-        <button id="startbutton" type="button" class="btn btn-primary" onclick="start_capture();">Start Data Capture</button>
-        <button id="stopbutton" type="button" class="btn btn-primary" onclick="stop_capture();">Stop Data Capture</button>
+        <div class="row">
+            <button id="startbutton" type="button" class="btn btn-primary" onclick="start_capture();">Start Data Capture</button>
+            <button id="stopbutton" type="button" class="btn btn-primary" onclick="stop_capture();">Stop Data Capture</button>
+        </div>
         <div class="row">
             <h3>Data list:</h3>
             <div id="log"></div>
@@ -25,14 +27,9 @@
     </div>
 
     <div id="right" style="float:right; width:50%;" class="row">
-        <h3>Download Select folder:</h3>
-        <button id="downloadbutton" type="button" class="btn btn-primary" onclick="download_data();">Download</button>
-        <select>
-            {% for each in option_list %}
-            <option value="{{each}}">{{each}}</option>
-            {% endfor %}
-        </select>
-
+        <div class="row">
+            <a id="downloadbutton" class="btn btn-primary" href="{{ url_for('autoindex') }}" target="_blank">Download Files</a>
+        </div>
         <div class="row">
             <h3>Application log:</h3>
             <button id="setupbutton" type="button" class="btn btn-primary" onclick="setup_logging();">Setup Logger</button>
