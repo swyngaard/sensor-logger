@@ -8,8 +8,8 @@ import os
 
 from shongololo import start_up as SU
 from shongololo import sys_admin as SA
-from shongololo import K30_serial
-from shongololo import Imet_serial
+from shongololo import K30_serial as KS
+from shongololo import Imet_serial as IS
 #TODO enable following with pkg_resources module later
 datadir = '/home/uvm/DATA/'
 datafile = 'data.csv'
@@ -56,9 +56,9 @@ class shongololo_thread(Thread):
         status, self.device_dict = SA.find_devices()
 
         # Connect to imets
-        self.imet_sockets = IS.open_imets(device_dict["imets"])
+        self.imet_sockets = IS.open_imets(self.device_dict["imets"])
         # Connect to CO2 meters
-        self.k30_sockets = KS.open_k30s(device_dict["k30s"])
+        self.k30_sockets = KS.open_k30s(self.device_dict["k30s"])
 
         # Start data log file
         status, ND = SA.mk_ND(datadir)
@@ -82,9 +82,10 @@ class shongololo_thread(Thread):
             while not sthread_stop_event.isSet():
                 pack = []
                 dataline = ""
+                print("LOGGING DATA>)))))))))))))))))))")
                 try:
                     latest_idata, latest_kdata = SA.read_data(self.imet_sockets, self.k30_sockets)
-
+                    print ("MANAGED TO  READ DATA")
                     # pack data
                     for count, k in zip(range(len(self.device_dict["k30s"])), self.device_dict["k30s"]):
                         pack.append(k[1] + "," + latest_kdata[count])
@@ -95,10 +96,11 @@ class shongololo_thread(Thread):
                     for x in pack:
                         dataline = dataline + "," + x
 
-                    fd.write("\n" + dataline)
+                    print("HHHHHHHHHHHHH:emmitting"+dataline)
                     socketio.emit('newnumber', {'number': dataline}, namespace='/test')
+                    print("HHHHHHHHHHHHH: writing data"+dataline)
+                    self.fd.write("\n" + dataline)
 
-                    time.sleep(period)
                     sleep(self.delay)
                 except:
                     if sthread.isAlive:
