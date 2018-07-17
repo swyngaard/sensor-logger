@@ -33,14 +33,14 @@ $(document).ready(function(){
 //Download a data directory
 function download_data(){
     socket.emit('download');
-  //  $('#downloadbutton').html('Download');
+    $('#downloadbutton').html('Download');
 }
 
 //Start a data capture session
 function start_capture(){
     socket.emit('start capture');
     //TODO add a visible timer
-    //$('#startstopbutton').html('Stop');
+    $('#startstopbutton').html('Stop');
     $('#log').html('');
     numbers_received = [];
 }
@@ -48,7 +48,7 @@ function start_capture(){
 //Stop a data capture session
 function stop_capture(){
     socket.emit('stop capture');
-   // $('#startstopbutton').html('Start');
+    $('#startstopbutton').html('Start');
 }
 
 
@@ -57,7 +57,7 @@ function stop_capture(){
 //Do pre data capture setup and initialise application logging
 function setup_logging(){
     socket.emit('do setup');
-//    $('#setupbutton').html('Setup');
+    $('#setupbutton').html('Setup');
     $('#aplog').html('');
     msgs_received = [];
 }
@@ -65,6 +65,6 @@ function setup_logging(){
 //Shutdown whole application gracefully
 function shutdown(){
     socket.emit('shutdown app');
-   // $('#startstopbutton').html('Start');
+    $('#startstopbutton').html('Start');
 }
 

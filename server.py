@@ -1,14 +1,12 @@
 from flask_socketio import SocketIO
 from flask import Flask, render_template, request
-from random import random
 from time import sleep
 from threading import Thread, Event
 import logging
-
-#import sys
-#sys.path.append('../shongololo/shongololo/')
 from shongololo import start_up
 from shongololo import sys_admin
+from shongololo import K30_serial
+from shongololo import Imet_serial
 
 app = Flask(__name__)
 
@@ -34,23 +32,47 @@ class shongololo_thread(Thread):
     def __init__(self):
         self.delay = 1
         super(shongololo_thread, self).__init__()
+        self.imet_sockets = []
+        self.k30_sockets = []
+        self.datafile = None    #File handle
 
-    def random_number_generator(self):
+    def capture_data(self):
         """
-        Generate a random number every 1 second and emit to a socketio instance (broadcast)
-        Ideally to be run in a separate thread?
+        Start capturing data from sensore and writing it to file
         """
-        # infinite loop of magical random numbers
-        print("Making random numbers")
         thread_stop_event.clear()
-        while not thread_stop_event.isSet():
-            number = round(random()*10, 3)
-            print(number)
-            socketio.emit('newnumber', {'number': number}, namespace='/test')
-            sleep(self.delay)
+        # Open sensor sockets
+        imet_dict = Imet_serial.find_imets()
+        self.imet_sockets = Imet_serial.open_imets(imet_dict)
+
+        k30_dict = K30_serial.find_k30s()
+        self.k30_sockets = K30_serial.open_k30s(k30_dict)
+
+        # Create data log file
+        status, ND = sys_admin.mk_ND(start_up.DATADIR)
+        if status !=0:
+            error = "Failed to create directory for data logging, data will not be saved to file, try restarting the application"
+            socketio.emit('newnumber', {'number': error}, namespace='/test')
+            sys.exit()
+        else:
+            self.datafile = SA.ini_datafile(str(ND + SA.DATAFILE))
+            socketio.emit('newnumber', {'number': "Starting log in {}".format(sys_admin.DATAFILE)}, namespace='/test')
+            socketio.emit('newnumber', {'number': sys_admin.DATA_HEADER}, namespace='/test')
+            self.datafile.write(sys_admin.DATA_HEADER)
+
+            #Sample data until told to stop
+            while not thread_stop_event.isSet():
+                numbers = sys_admin.read_data(self.imet_sockets, self.k30_sockets)
+                socketio.emit('newnumber', {'number': numbers}, namespace='/test')
+                sleep(self.delay)
+
+
+    def stop_capture(self):
+        sys_admin.close_sensors(self.imet_sockets+self.k30_sockets)
+        self.datafile.close()
 
     def run(self):
-        self.random_number_generator()
+        self.capture_data()
 
 class monitoring_thread(Thread):
     """Prints application log to webpage and carries out initial setup work"""
@@ -58,7 +80,7 @@ class monitoring_thread(Thread):
         self.delay = 1
         self.imet_sockets = []
         self.k30_sockets = []
-        self.datafile = ""
+        #self.datafile = ""
         super(monitoring_thread, self).__init__()
 
     def setup_shongololo(self):
@@ -67,9 +89,15 @@ class monitoring_thread(Thread):
         """
         mthread_stop_event.clear()
         flask_handler = FlaskHandler(socketio)
-        self.imets_sockets, self.k30_sockets  = start_up.start_up_for_web(flask_handler)
 
+        #Do startup sequence
+        self.imets_sockets, self.k30_sockets  = start_up.start_up(flask_handler)
+
+        #Test sensors
         start_up.test_sensors(self.imets_sockets,self.k30_sockets)
+
+        #Close sensor sockets
+        sys_admin.close_sensors(mthread.imet_sockets+mthread.k30_sockets)
 
     def run(self):
         self.setup_shongololo()
@@ -104,10 +132,8 @@ def start_capture():
 @socketio.on('stop capture', namespace='/test')
 def stop_capture():
     """Stop a data capture session"""
-    #TODO close down files
+    sthread.stop_capture()
     sthread_stop_event.set()
-
-
 
 # Functions controlling whole system
 @socketio.on('do setup', namespace='/test')
@@ -121,18 +147,6 @@ def do_setuplogging():
 @socketio.on('shutdown app', namespace='/test')
 def shutdown_app():
     """Shutdown whole application gracefully"""
-
-    #Close sensor sockets
-    for i in mthread.imet_sockets:
-        try:
-            i.close()
-        except:
-            pass
-    for k in mthread.k30_sockets:
-        try:
-            k.close()
-        except:
-            pass
 
     #Stop data capture thread if running
     if sthread.isAlive:
