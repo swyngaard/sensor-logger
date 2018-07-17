@@ -6,10 +6,16 @@ from flask_autoindex import AutoIndex
 import logging
 import os
 
-from shongololo import start_up
-from shongololo import sys_admin
+from shongololo import start_up as SU
+from shongololo import sys_admin as SA
 from shongololo import K30_serial
 from shongololo import Imet_serial
+#TODO enable following with pkg_resources module later
+datadir = '/home/uvm/DATA/'
+datafile = 'data.csv'
+ihead= ",IMET_ID,  Latitude, Longitude, Altitude, Air Speed (m/s), Mode, Fixed Satellites, Avai    lable Satellites,voltage,current,level,id"
+khead= ",K30_ID, CO2 ppm"
+period = 0.5
 
 app = Flask(__name__)
 
@@ -39,50 +45,73 @@ class shongololo_thread(Thread):
         super(shongololo_thread, self).__init__()
         self.imet_sockets = []
         self.k30_sockets = []
-        self.datafile = None    #File handle
+        self.fd = None    #File handle
 
     def capture_data(self):
         """
         Start capturing data from sensore and writing it to file
         """
         sthread_stop_event.clear()
-        # Open sensor sockets
-        imet_dict = Imet_serial.find_imets()
-        self.imet_sockets = Imet_serial.open_imets(imet_dict)
+        # Access devices
+        status, self.device_dict = SA.find_devices()
 
-        k30_dict = K30_serial.find_k30s()
-        self.k30_sockets = K30_serial.open_k30s(k30_dict)
+        # Connect to imets
+        self.imet_sockets = IS.open_imets(device_dict["imets"])
+        # Connect to CO2 meters
+        self.k30_sockets = KS.open_k30s(device_dict["k30s"])
 
-        # Create data log file
-        status, ND = sys_admin.mk_ND(start_up.DATADIR)
+        # Start data log file
+        status, ND = SA.mk_ND(datadir)
         if status !=0:
             error = "Failed to create directory for data logging, data will not be saved to file, try restarting the application"
             socketio.emit('newnumber', {'number': error}, namespace='/test')
             sys.exit()
         else:
-            self.datafile = SA.ini_datafile(str(ND + SA.DATAFILE))
-            socketio.emit('newnumber', {'number': "Starting log in {}".format(sys_admin.DATAFILE)}, namespace='/test')
-            socketio.emit('newnumber', {'number': sys_admin.DATA_HEADER}, namespace='/test')
-            self.datafile.write(sys_admin.DATA_HEADER)
+            header = ""
+            for c in range(len(self.device_dict["k30s"])):
+                header = header + str(khead)
+            for i in range(len(self.device_dict["imets"])):
+                header = header + str(ihead)
+            self.fd = SA.ini_datafile(str(ND) + datafile, header)
+
+            socketio.emit('newnumber', {'number': "Starting log in {}".format(datafile)}, namespace='/test')
+            socketio.emit('newnumber', {'number': header}, namespace='/test')
+            self.fd.write(header)
 
             #Sample data until told to stop
             while not sthread_stop_event.isSet():
+                pack = []
+                dataline = ""
                 try:
-                    numbers = sys_admin.read_data(self.imet_sockets, self.k30_sockets)
-                    socketio.emit('newnumber', {'number': numbers}, namespace='/test')
+                    latest_idata, latest_kdata = SA.read_data(self.imet_sockets, self.k30_sockets)
+
+                    # pack data
+                    for count, k in zip(range(len(self.device_dict["k30s"])), self.device_dict["k30s"]):
+                        pack.append(k[1] + "," + latest_kdata[count])
+
+                    for count, i in zip(range(len(self.device_dict["imets"])), self.device_dict["imets"]):
+                        pack.append(i[1] + "," + latest_idata[count])
+
+                    for x in pack:
+                        dataline = dataline + "," + x
+
+                    fd.write("\n" + dataline)
+                    socketio.emit('newnumber', {'number': dataline}, namespace='/test')
+
+                    time.sleep(period)
                     sleep(self.delay)
-                except KeyboardInterrupt as e:
+                except:
                     if sthread.isAlive:
                         stop_capture()
 
                     # Close monitoring thread
-                    sys_admin.shutdown_monitor()
+                    SA.shutdown_monitor()
                     mthread_stop_event.set()
 
 
     def stop_capture(self):
-        sys_admin.close_sensors(self.imet_sockets+self.k30_sockets)
-        self.datafile.close()
+        SA.close_sensors(self.imet_sockets+self.k30_sockets)
+        self.fd.close()
 
     def run(self):
         self.capture_data()
@@ -105,13 +134,13 @@ class monitoring_thread(Thread):
         flask_handler = FlaskHandler(socketio)
 
         #Do startup sequence
-        self.imets_sockets, self.k30_sockets, self.device_dict  = start_up.start_up(flask_handler)
+        self.imets_sockets, self.k30_sockets, self.device_dict  = SU.start_up(flask_handler)
 
         #Test sensors
-        start_up.test_sensors(self.imets_sockets,self.k30_sockets)
+        SU.test_sensors(self.imets_sockets,self.k30_sockets)
 
         #Close sensor sockets
-        sys_admin.close_sensors(mthread.imet_sockets+mthread.k30_sockets)
+        SA.close_sensors(mthread.imet_sockets+mthread.k30_sockets)
 
     def run(self):
         self.setup_shongololo()
@@ -173,7 +202,7 @@ def shutdown_app():
         stop_capture()
 
     #Close monitoring thread
-    sys_admin.shutdown_monitor()
+    SA.shutdown_monitor()
     mthread_stop_event.set()
 
 if __name__ == "__main__":
