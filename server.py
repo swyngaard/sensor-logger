@@ -93,6 +93,7 @@ class monitoring_thread(Thread):
         self.delay = 1
         self.imet_sockets = []
         self.k30_sockets = []
+        self.device_dict = {}
         self.datafile = ""
         super(monitoring_thread, self).__init__()
 
@@ -104,7 +105,7 @@ class monitoring_thread(Thread):
         flask_handler = FlaskHandler(socketio)
 
         #Do startup sequence
-        self.imets_sockets, self.k30_sockets  = start_up.start_up(flask_handler)
+        self.imets_sockets, self.k30_sockets, self.device_dict  = start_up.start_up(flask_handler)
 
         #Test sensors
         start_up.test_sensors(self.imets_sockets,self.k30_sockets)
