@@ -67,9 +67,17 @@ class shongololo_thread(Thread):
 
             #Sample data until told to stop
             while not thread_stop_event.isSet():
-                numbers = sys_admin.read_data(self.imet_sockets, self.k30_sockets)
-                socketio.emit('newnumber', {'number': numbers}, namespace='/test')
-                sleep(self.delay)
+                try:
+                    numbers = sys_admin.read_data(self.imet_sockets, self.k30_sockets)
+                    socketio.emit('newnumber', {'number': numbers}, namespace='/test')
+                    sleep(self.delay)
+                except KeyboardInterrupt as e:
+                    if sthread.isAlive:
+                        stop_capture()
+
+                    # Close monitoring thread
+                    sys_admin.shutdown_monitor()
+                    mthread_stop_event.set()
 
 
     def stop_capture(self):

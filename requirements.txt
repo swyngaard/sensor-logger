@@ -2,4 +2,4 @@ Flask==1.0.2
 Flask-SocketIO==3.0.1
 Flask-AutoIndex==0.6.1
 pyserial
-shongololo>=1.0.0
+shongololo>=1.0.1
