@@ -45,7 +45,7 @@ class shongololo_thread(Thread):
         """
         Start capturing data from sensore and writing it to file
         """
-        thread_stop_event.clear()
+        sthread_stop_event.clear()
         # Open sensor sockets
         imet_dict = Imet_serial.find_imets()
         self.imet_sockets = Imet_serial.open_imets(imet_dict)
@@ -66,7 +66,7 @@ class shongololo_thread(Thread):
             self.datafile.write(sys_admin.DATA_HEADER)
 
             #Sample data until told to stop
-            while not thread_stop_event.isSet():
+            while not sthread_stop_event.isSet():
                 try:
                     numbers = sys_admin.read_data(self.imet_sockets, self.k30_sockets)
                     socketio.emit('newnumber', {'number': numbers}, namespace='/test')
