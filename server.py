@@ -15,7 +15,8 @@ app = Flask(__name__)
 
 # turn the flask app into a socketio app
 socketio = SocketIO(app)
-filesindex = AutoIndex(app, os.path.join(app.root_path, 'files'), add_url_rules=False)
+#TODO change hardcoded download files dir  to config based
+filesindex = AutoIndex(app, os.path.join(app.root_path, '/home/uvm/DATA/'), add_url_rules=False)
 
 sthread = Thread()
 sthread_stop_event = Event()
