@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Sensor Logger</title>
-    <script src="{{ url_for('static', filename='/js/jquery-3.3.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery-3.3.1.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
     <script src="static/js/application.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.css') }}">
@@ -29,6 +29,7 @@
     <div id="right" style="float:right; width:50%;" class="row">
         <div class="row">
             <a id="downloadbutton" class="btn btn-primary" href="{{ url_for('autoindex') }}" target="_blank">Download Files</a>
+            <button id="shutdownPibutton" type="button" class="btn btn-primary" onclick="Shutdown_Pi();">Shutdown Pi3</button>
         </div>
         <div class="row">
             <h3>Application log:</h3>

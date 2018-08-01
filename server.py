@@ -7,12 +7,12 @@ import logging
 import os
 import getpass
 import sys
-
 from shongololo import start_up as SU
 from shongololo import sys_admin as SA
 from shongololo import K30_serial as KS
 from shongololo import Imet_serial as IS
-#TODO enable following with pkg_resources module later
+
+# TODO enable following with pkg_resources module later
 user = getpass.getuser()
 data_dir = '/home/' + user + '/DATA/'
 datafile = 'data.csv'
@@ -28,13 +28,7 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 filesindex = AutoIndex(app, os.path.join(app.root_path, data_dir), add_url_rules=False)
 
-app = Flask(__name__)
-
-# turn the flask app into a socketio app
-socketio = SocketIO(app)
-filesindex = AutoIndex(app, os.path.join(app.root_path, data_dir), add_url_rules=False)
-
-sthread = Thread()
+#sthread = Thread()
 sthread_stop_event = Event()
 mthread = Thread()
 mthread_stop_event = Event()
@@ -52,7 +46,7 @@ class FlaskHandler(logging.Handler):
 
 class shongololo_thread(Thread):
     def __init__(self):
-        self.delay = 1
+        self.delay = 0.5
         super(shongololo_thread, self).__init__()
         self.device_dict = {}
         self.imet_sockets = []
@@ -83,12 +77,6 @@ class shongololo_thread(Thread):
             header = ""
             for c in range(len(self.device_dict["k30s"])):
                 header = header + str(k_head)
-            socketio.emit('newnumber', {'number': error}, namespace='/test')
-            sys.exit()
-        else:
-            header = ""
-            for c in range(len(self.device_dict["k30s"])):
-                header = header + str(k_head)
             for i in range(len(self.device_dict["imets"])):
                 header = header + str(i_head)
             self.fd = SA.ini_datafile(str(numbered_nd) + datafile, header)
@@ -101,33 +89,26 @@ class shongololo_thread(Thread):
             while not sthread_stop_event.isSet():
                 pack = []
                 dataline = ""
-                try:
-                    latest_idata, latest_kdata = SA.read_data(self.imet_sockets, self.k30_sockets)
-                    # pack data
-                    for count, k in zip(range(len(self.device_dict["k30s"])), self.device_dict["k30s"]):
-                        pack.append(k[1] + "," + latest_kdata[count])
+                latest_idata, latest_kdata = SA.read_data(self.imet_sockets, self.k30_sockets)
+                # pack data
+                for count, k in zip(range(len(self.device_dict["k30s"])), self.device_dict["k30s"]):
+                    pack.append(k[1] + "," + latest_kdata[count])
 
-                    for count, i in zip(range(len(self.device_dict["imets"])), self.device_dict["imets"]):
-                        pack.append(i[1] + "," + latest_idata[count])
+                for count, i in zip(range(len(self.device_dict["imets"])), self.device_dict["imets"]):
+                    pack.append(i[1] + "," + latest_idata[count])
 
-                    for x in pack:
-                        dataline = dataline + "," + x
+                for x in pack:
+                    dataline = dataline + "," + x
 
-                    socketio.emit('newnumber', {'number': dataline}, namespace='/test')
-                    self.fd.write("\n" + dataline)
+                socketio.emit('newnumber', {'number': dataline}, namespace='/test')
+                self.fd.write("\n" + dataline)
 
-                    sleep(self.delay)
-                except:
-                    if sthread.isAlive:
-                        stop_capture()
-
-                    # Close monitoring thread
-                    SA.shutdown_monitor()
-                    mthread_stop_event.set()
+                sleep(self.delay)
 
     def stop_capture(self):
         SA.close_sensors(self.imet_sockets + self.k30_sockets)
-        self.fd.close()
+        if self.fd != None:
+            self.fd.close()
 
     def run(self):
         self.capture_data()
@@ -137,7 +118,7 @@ class monitoring_thread(Thread):
     """Prints application log to webpage and carries out initial setup work"""
 
     def __init__(self):
-        self.delay = 1
+        self.delay = 0.5
         self.imet_sockets = []
         self.k30_sockets = []
         self.device_dict = {}
@@ -154,20 +135,23 @@ class monitoring_thread(Thread):
         # Do startup sequence
         SA.if_mk_dir(data_dir)
         SU.start_logging(logfile, flask_handler, 1)
-        self.imet_sockets, self.k30_sockets, self.device_dict = SU.start_up(data_dir)
+        self.imet_sockets, self.k30_sockets, self.device_dict = SU.start_up()
 
         # Test sensors
         if SU.test_sensors(self.imet_sockets, self.k30_sockets) == 0:
 
             # Successful test, close sensor sockets and move on
             SA.close_sensors(mthread.imet_sockets + mthread.k30_sockets)
+            sys.stdout.flush()
 
         else:
             mthread_stop_event.set()
+            sys.stdout.flush()
 
     def run(self):
         self.setup_shongololo()
 
+sthread = shongololo_thread()
 
 @app.route('/')
 def index():
@@ -221,17 +205,36 @@ def do_setuplogging():
         mthread.start()
 
 
+@socketio.on('Shutdown Pi', namespace='/test')
+def Shutdown_Pi():
+    """Shutdown Pi gracefully"""
+    # Stop data capture thread if running
+    if sthread.isAlive:
+        sthread.stop_capture()
+        sthread_stop_event.set()
+
+
+    # Close monitoring thread if still alive
+    SA.shutdown_monitor()
+    if mthread.isAlive:
+        mthread_stop_event.set()
+
+    SA.shutdown_computer()
+
 @socketio.on('shutdown app', namespace='/test')
 def shutdown_app():
     """Shutdown whole application gracefully"""
 
     # Stop data capture thread if running
     if sthread.isAlive:
-        stop_capture()
+        sthread.stop_capture()
+        sthread_stop_event.set()
+
 
     # Close monitoring thread
     SA.shutdown_monitor()
-    mthread_stop_event.set()
+    if mthread.isAlive:
+        mthread_stop_event.set()
 
 
 if __name__ == "__main__":

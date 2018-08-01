@@ -68,3 +68,8 @@ function shutdown(){
     $('#startstopbutton').html('Start');
 }
 
+//Shutdown whole Pi gracefully
+function Shutdown_Pi(){
+    socket.emit('Shutdown Pi');
+    $('#shutdownPibutton').html('ShutdownPi');
+}
