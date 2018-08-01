@@ -5,17 +5,20 @@ from threading import Thread, Event
 from flask_autoindex import AutoIndex
 import logging
 import os
+import getpass
 
 from shongololo import start_up as SU
 from shongololo import sys_admin as SA
 from shongololo import K30_serial as KS
 from shongololo import Imet_serial as IS
 #TODO enable following with pkg_resources module later
-datadir = '/home/uvm/DATA/'
+user = getpass.getuser()
+datadir = '/home/'+user+'/DATA/'
 datafile = 'data.csv'
+logfile = datadir + 'Shongololo_log.log'
+period = 0.5
 ihead= ",IMET_ID,  Latitude, Longitude, Altitude, Air Speed (m/s), Mode, Fixed Satellites, Avai    lable Satellites,voltage,current,level,id"
 khead= ",K30_ID, CO2 ppm"
-period = 0.5
 
 app = Flask(__name__)
 
@@ -61,7 +64,7 @@ class shongololo_thread(Thread):
         self.k30_sockets = KS.open_k30s(self.device_dict["k30s"])
 
         # Start data log file
-        status, ND = SA.mk_ND(datadir)
+        status, ND = SA.mk_numbered_nd(datadir)
         if status !=0:
             error = "Failed to create directory for data logging, data will not be saved to file, try restarting the application"
             socketio.emit('newnumber', {'number': error}, namespace='/test')
@@ -136,7 +139,8 @@ class monitoring_thread(Thread):
         flask_handler = FlaskHandler(socketio)
 
         #Do startup sequence
-        self.imets_sockets, self.k30_sockets, self.device_dict  = SU.start_up(flask_handler)
+        SU.start_logging(logfile,flask_handler,0)
+        self.imets_sockets, self.k30_sockets, self.device_dict  = SU.start_up(datadir)
 
         #Test sensors
         SU.test_sensors(self.imets_sockets,self.k30_sockets)
