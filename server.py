@@ -1,29 +1,32 @@
 from flask_socketio import SocketIO
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 from time import sleep
 from threading import Thread, Event
 from flask_autoindex import AutoIndex
 import logging
 import os
-
-from shongololo import start_up as SU
-from shongololo import sys_admin as SA
-from shongololo import K30_serial as KS
-from shongololo import Imet_serial as IS
+import getpass
+import sys
+import shongololo.start_up as SU
+import shongololo.sys_admin as SA
+import shongololo.K30_serial as KS
+import shongololo.Imet_serial as IS
 
 # TODO enable following with pkg_resources module later
-datadir = '/home/uvm/DATA/'
+user = getpass.getuser()
+data_dir = '/home/' + user + '/DATA/'
 datafile = 'data.csv'
-ihead = ",IMET_ID,  Latitude, Longitude, Altitude, Air Speed (m/s), Mode, Fixed Satellites, Avai    lable Satellites,voltage,current,level,id"
-khead = ",K30_ID, CO2 ppm"
+logfile = data_dir + 'Shongololo_log.log'
+i_head = ",IMET_ID,  Latitude, Longitude, Altitude, Air Speed (m/s), Mode, Fixed Satellites, Available Satellites," \
+        "voltage,current,level,id "
+k_head = ",K30_ID, CO2 ppm"
 period = 0.5
 
 app = Flask(__name__)
 
 # turn the flask app into a socketio app
 socketio = SocketIO(app)
-# TODO change hardcoded download files dir  to config based
-filesindex = AutoIndex(app, os.path.join(app.root_path, '/home/uvm/DATA/'), add_url_rules=False)
+filesindex = AutoIndex(app, os.path.join(app.root_path, data_dir), add_url_rules=False)
 
 sthread = Thread()
 sthread_stop_event = Event()
@@ -41,10 +44,11 @@ class FlaskHandler(logging.Handler):
         socketio.emit('newmsg', {'lmsg': self.format(record)}, namespace='/test')
 
 
-class shongololoThread(Thread):
+class shongololo_thread(Thread):
     def __init__(self):
         self.delay = 1
-        super(shongololoThread, self).__init__()
+        super(shongololo_thread, self).__init__()
+        self.device_dict = {}
         self.imet_sockets = []
         self.k30_sockets = []
         self.fd = None  # File handle
@@ -63,18 +67,19 @@ class shongololoThread(Thread):
         self.k30_sockets = KS.open_k30s(self.device_dict["k30s"])
 
         # Start data log file
-        status, ND = SA.mk_ND(datadir)
+        status, numbered_nd = SA.mk_numbered_nd(data_dir)
         if status != 0:
-            error = "Failed to create directory for data logging, data will not be saved to file, try restarting the application"
+            error = "Failed to create directory for data logging, data will not be saved to file, try restarting the " \
+                    "application "
             socketio.emit('newnumber', {'number': error}, namespace='/test')
             sys.exit()
         else:
             header = ""
             for c in range(len(self.device_dict["k30s"])):
-                header = header + str(khead)
+                header = header + str(k_head)
             for i in range(len(self.device_dict["imets"])):
-                header = header + str(ihead)
-            self.fd = SA.ini_datafile(str(ND) + datafile, header)
+                header = header + str(i_head)
+            self.fd = SA.ini_datafile(str(numbered_nd) + datafile, header)
 
             socketio.emit('newnumber', {'number': "Starting log in {}".format(datafile)}, namespace='/test')
             socketio.emit('newnumber', {'number': header}, namespace='/test')
@@ -84,10 +89,8 @@ class shongololoThread(Thread):
             while not sthread_stop_event.isSet():
                 pack = []
                 dataline = ""
-                print("LOGGING DATA>)))))))))))))))))))")
                 try:
                     latest_idata, latest_kdata = SA.read_data(self.imet_sockets, self.k30_sockets)
-                    print("MANAGED TO  READ DATA")
                     # pack data
                     for count, k in zip(range(len(self.device_dict["k30s"])), self.device_dict["k30s"]):
                         pack.append(k[1] + "," + latest_kdata[count])
@@ -98,9 +101,7 @@ class shongololoThread(Thread):
                     for x in pack:
                         dataline = dataline + "," + x
 
-                    print("HHHHHHHHHHHHH:emmitting" + dataline)
                     socketio.emit('newnumber', {'number': dataline}, namespace='/test')
-                    print("HHHHHHHHHHHHH: writing data" + dataline)
                     self.fd.write("\n" + dataline)
 
                     sleep(self.delay)
@@ -120,7 +121,7 @@ class shongololoThread(Thread):
         self.capture_data()
 
 
-class monitoringThread(Thread):
+class monitoring_thread(Thread):
     """Prints application log to webpage and carries out initial setup work"""
 
     def __init__(self):
@@ -129,7 +130,7 @@ class monitoringThread(Thread):
         self.k30_sockets = []
         self.device_dict = {}
         self.datafile = ""
-        super(monitoringThread, self).__init__()
+        super(monitoring_thread, self).__init__()
 
     def setup_shongololo(self):
         """
@@ -139,13 +140,18 @@ class monitoringThread(Thread):
         flask_handler = FlaskHandler(socketio)
 
         # Do startup sequence
-        self.imets_sockets, self.k30_sockets, self.device_dict = SU.start_up(flask_handler)
+        SA.if_mk_dir(data_dir)
+        SU.start_logging(logfile, flask_handler, 1)
+        self.imet_sockets, self.k30_sockets, self.device_dict = SU.start_up(data_dir)
 
         # Test sensors
-        SU.test_sensors(self.imets_sockets, self.k30_sockets)
+        if SU.test_sensors(self.imet_sockets, self.k30_sockets) == 0:
 
-        # Close sensor sockets
-        SA.close_sensors(mthread.imet_sockets + mthread.k30_sockets)
+            # Successful test, close sensor sockets and move on
+            SA.close_sensors(mthread.imet_sockets + mthread.k30_sockets)
+
+        else:
+            mthread_stop_event.set()
 
     def run(self):
         self.setup_shongololo()
@@ -182,7 +188,7 @@ def start_capture():
     # Start the random number generator thread only if the thread has not been started before.
     if not sthread.isAlive():
         print("Starting Thread")
-        sthread = shongololoThread()
+        sthread = shongololo_thread()
         sthread.start()
 
 
@@ -199,7 +205,7 @@ def do_setuplogging():
     """Do pre data capture setup and initialise application logging"""
     global mthread
     if not mthread.isAlive():
-        mthread = monitoringThread()
+        mthread = monitoring_thread()
         mthread.start()
 
 
